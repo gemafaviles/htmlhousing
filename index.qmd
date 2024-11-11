@@ -18,9 +18,9 @@ webr:
     - tidyterra # Para trabajar con datos espaciales, tiles
     - slippymath # Para trabajar con datos espaciales, tiles
     - skimr    # Para estadísticos descriptivos
-  resources:
-    - housing_madrid 
-embed-resources: true
+resources:
+    - housing_madrid
+embed-resources: true 
 theme: cerulean
 highlight-style: ayu-mirage
 self-contained: true
