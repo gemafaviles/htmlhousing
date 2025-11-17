@@ -1,0 +1,358 @@
+---
+title: "Trabajando con datos reales: seguimiento"
+author: "Gema Fernández-Avilés Calderón"
+# format: html
+engine: knitr  
+format: live-html
+webr:
+  packages:
+    - readxl          # Para leer los datos en Excle
+    - tidyverse       # Para manipular los datos
+    - DT              # Para mostrar tablas interactivas
+#    - gganimate       # Para crear animaciones
+    - leaflet         # Para crear mapas interactivos
+    - leaflet.extras  # Para crear extesiones en mapas interactivos
+    - htmltools       # Para trabajar con HTML 
+    - sf              # Para trabajar con datos espaciales
+    - mapSpain        # Para crear mapas de España
+resources:
+    - datos
+embed-resources: true 
+theme: cerulean
+highlight-style: ayu-mirage
+self-contained: true
+date: "`r Sys.Date()`"
+code-link: true
+number-sections: true
+execute:
+  code-overflow: scroll
+  echo: true
+  eval: true
+  output: true
+  include: true
+  freeze: auto
+  fig-height: 5
+  warning: false
+  code-fold: true
+  comment: "#>"
+  code-line-numbers: true
+  code-copy: true
+#bibliography: biblio.bib
+---
+
+
+
+{{< include ./_extensions/r-wasm/live/_knitr.qmd >}}
+
+
+<!-- Poner esto en la terminal para que funcione el quarto-live -->
+<!-- Tools->Terminal->Move Focus to Terminal -->
+<!-- quarto add r-wasm/quarto-live -->
+
+
+
+
+```{webr read-packages}
+library(readxl)          # Para leer los datos en Excel
+library(tidyverse)       # Para manipular los datos
+library(DT)              # Para mostrar tablas interactivas
+library(gganimate)       # Para crear animaciones
+library(leaflet)         # Para crear mapas interactivos
+library(leaflet.extras)  # Para crear extesiones en mapas interactivos
+library(htmltools)       # Para trabajar con HTML 
+library(sf)              # Para trabajar con datos espaciales
+library(mapSpain)        # Para crear mapas de España
+```
+
+
+# Leo el fichero de datos y muestro las primeras filas.
+
+```{webr read-data}
+seguimiento <- read_excel("datos/PositionReport.xlsx")
+
+dim(seguimiento)
+names(seguimiento)
+```
+
+
+# Examino de forma interactiva el conjunto comleto.
+
+```{webr examino-datos}
+DT::datatable(seguimiento, options = list(
+  pageLength = 7
+))
+```
+
+
+# Seleccionamos una muestra (`NO es una m.a.s`), son las 500 primeras observaciones.
+
+```{webr muestra}
+data500 <- seguimiento[1:500,]
+```
+
+
+
+# ¿Cómo es la trayectoria de la baliza en estas 500 observaciones?
+
+```{webr tray1}
+leaflet() |>
+  addTiles() |>
+  addPolylines(data = data500, lng = ~longitud, lat = ~latitud, color = "black", weight = 2)
+```
+
+
+# ¿Dónde ha pasado más tiempo la baliza en estas 500 observaciones?
+
+```{webr time}
+leaflet() |>
+  addTiles() |>
+    addCircleMarkers(data = data500, lng = ~longitud, lat = ~latitud, radius = 10, stroke = FALSE)
+```
+
+
+# Unimos las dos capas anteriores en un solo mapa y analizamos el resultado.
+
+```{webr tray-time}
+mapa <- leaflet(data500) |>
+  addTiles() |>
+  addCircleMarkers(data = data500, lng = ~longitud, lat = ~latitud, radius = 8, stroke = FALSE) |>
+  addPolylines(~longitud, ~latitud, color = "black", weight = 3, opacity = 0.5)
+
+mapa
+```
+
+
+# ¿Dónde se inicia el recorrido? ¿En Madrid? ¿Barcelona? ¿Tarragona? ¿Zaragoza? ¿Otra ciudad?
+
+```{webr begin-end}
+pal <- colorNumeric(palette = "viridis", domain = data500$orden)
+
+# Crear un mapa interactivo con leaflet
+mapa <- leaflet(data500) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, popup = ~paste("Fecha:", fecha, "<br>Velocidad:", orden, "Fecha"),
+                   color = ~pal(orden), radius = 5, stroke = FALSE, fillOpacity = 0.8) |>
+    addLegend("bottomright", pal = pal, values = ~orden, title = "Time",
+            opacity = 1)
+
+mapa
+```
+
+
+# ¿Se puede determinar en qué áreas la localización de la baliza es mayor?
+
+```{webr heatmap-muestra}
+# Crear una paleta de colores para el orden
+pal <- colorNumeric(palette = "viridis", domain = seguimiento$orden)
+
+# Crear un mapa interactivo con leaflet y añadir un mapa de calor
+mapa <- leaflet(data500) |>
+  addTiles() |>
+  addHeatmap(lng = ~longitud, lat = ~latitud, intensity = ~orden, blur = 20, max = 0.05, radius = 15) |>
+  addCircleMarkers(~longitud, ~latitud, popup = ~paste("Fecha:", fecha),
+                   color = ~pal(orden), radius = 5, stroke = FALSE, fillOpacity = 0.8) |>
+  addLegend("bottomright", pal = pal, values = ~orden, title = "Time",
+            opacity = 1)
+
+mapa
+```
+
+
+
+```{webr animation}
+# Obtener los datos geoespaciales de España
+esp <- esp_get_country()
+
+# Extraer los bordes de España como puntos XY
+esp_borde <- st_cast(esp, "POINT")
+
+# Crear el gráfico con los puntos del borde de España
+p <- ggplot(data500, aes(x = longitud, y = latitud, color = orden)) +
+  geom_point(data = esp_borde, aes(x = st_coordinates(esp_borde)[,1], y = st_coordinates(esp_borde)[,2]), color = "blue", size = 1) +
+  geom_point(size = 3) +
+    geom_line(size = 1, alpha = 0.5) +
+  geom_path(aes(group = 1), color = "red", size = 1, alpha = 0.5) +
+  scale_color_viridis_c() +
+  labs(title = 'Movimiento de la baliza: {frame_time}', x = 'Longitud', y = 'Latitud') +
+  theme_minimal()
+
+p
+```
+
+
+```{webr animation-gif}
+#| eval: false
+
+# Añadir la animación con gganimate
+anim <- p +
+  transition_time(fecha) +
+  ease_aes('linear')
+
+# Guardar la animación como un archivo GIF
+anim_save("animacion_baliza_line.gif", anim)
+
+# Mostrar la animación
+anim
+```
+
+
+# ¿Qué día ha tenido más conexiones la baliza?
+
+```{webr}
+seguimiento <- seguimiento %>%
+  mutate(fecha = as.Date(fecha))
+
+# Contar el número de conexiones por día
+conexiones_por_dia <- seguimiento %>%
+  group_by(fecha) %>%
+  summarise(conexiones = n())
+
+# Encontrar el día con el mayor número de conexiones
+dia_max_conexiones <- conexiones_por_dia %>%
+  filter(conexiones == max(conexiones))
+
+# Obtener la fecha con el mayor número de conexiones
+max_fecha <- dia_max_conexiones$fecha
+
+# Filtrar los datos para el día con el mayor número de conexiones
+datos_max_fecha <- seguimiento %>%
+  filter(fecha == max_fecha)
+
+# Encontrar la zona con el mayor número de conexiones en ese día
+zona_max_conexiones <- datos_max_fecha %>%
+  group_by(latitud, longitud) %>%
+  summarise(conexiones = n()) %>%
+  arrange(desc(conexiones)) %>%
+  slice(1)
+
+# Mostrar la zona con el mayor número de conexiones
+print(zona_max_conexiones)
+
+# Crear el gráfico
+p <- ggplot(datos_max_fecha, aes(x = longitud, y = latitud)) +
+ # geom_point(aes(color = orden), size = 3) +
+  geom_point(data = zona_max_conexiones, aes(x = longitud, y = latitud), color = "red", size = 3) +
+  labs(title = paste('Zona con el Mayor Número de Conexiones el Día', max_fecha),
+       x = 'Longitud', y = 'Latitud') +
+  theme_minimal()
+
+p
+```
+
+
+# ¿Cuál ha sido el recorrdido de la baliza en el periodo completo?
+
+```{webr}
+# Extraer mes y año para agrupar
+seguimiento <- seguimiento |>
+  mutate(month_year = format(fecha, "%Y-%m"))
+
+# Crear el gráfico
+ggplot(data = esp) +
+  geom_sf() +
+  geom_point(data = seguimiento, aes(x = longitud, y = latitud, color = month_year), size = 3) +
+  labs(title = "Movimiento de la baliza por meses",
+       x = "Longitud",
+       y = "Latitud",
+       color = "Mes-Año") +
+  theme_minimal()
+```
+
+
+
+
+
+```{webr seguimiento-mes}
+# Filtrar registros de julio
+seguimiento_julio <- seguimiento |>
+  filter(format(fecha, "%m") == "07")
+
+# Filtrar registros de agosto
+seguimiento_agosto <- seguimiento |>
+  filter(format(fecha, "%m") == "08")
+
+# Filtrar registros de septiembre
+seguimiento_septiembre <- seguimiento |>
+  filter(format(fecha, "%m") == "09")
+
+# Filtrar registros de octubre
+seguimiento_octubre <- seguimiento |>
+  filter(format(fecha, "%m") == "10")
+
+
+# Crear el mapa para julio
+mapa_julio <- leaflet(data = seguimiento_julio) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, color = "red", radius = 5, fillOpacity = 0.7) |>
+  setView(lng = mean(seguimiento_julio$longitud), lat = mean(seguimiento_julio$latitud), zoom = 12) |>
+  addLegend("bottomright", colors = "red", labels = "Julio", title = "Mes")
+
+# Crear el mapa para agosto
+mapa_agosto <- leaflet(data = seguimiento_agosto) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, color = "blue", radius = 5, fillOpacity = 0.7) |>
+  setView(lng = mean(seguimiento_agosto$longitud), lat = mean(seguimiento_agosto$latitud), zoom = 12) |>
+  addLegend("bottomright", colors = "blue", labels = "Agosto", title = "Mes")
+
+# Crear el mapa para septiembre
+mapa_septiembre <- leaflet(data = seguimiento_septiembre) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, color = "green", radius = 5, fillOpacity = 0.7) |>
+  setView(lng = mean(seguimiento_septiembre$longitud), lat = mean(seguimiento_septiembre$latitud), zoom = 6) |>
+  addLegend("bottomright", colors = "green", labels = "Septiembre", title = "Mes")
+
+# Crear el mapa para octubre
+mapa_octubre <- leaflet(data = seguimiento_octubre) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, color = "yellow", radius = 5, fillOpacity = 0.7) |>
+  setView(lng = mean(seguimiento_octubre$longitud), lat = mean(seguimiento_octubre$latitud), zoom = 6) |>
+  addLegend("bottomright", colors = "yellow", labels = "Octubre", title = "Mes")
+
+
+# Mostrar los mapas
+mapa_julio
+mapa_agosto
+mapa_septiembre
+mapa_octubre
+
+# Mostrar los mapas leaflef en un panel 2 x 2
+```
+
+# Organizamos los mapas en un panel 2 x 2
+
+
+```{webr plot-seguimiento-mes}
+# Organizar los mapas en una vista por columnas o paneles
+htmltools::browsable(
+  htmltools::tagList(
+    htmltools::tags$div(style = "display: flex; flex-wrap: wrap;",
+      htmltools::tags$div(style = "flex: 1; min-width: 300px;", mapa_julio),
+      htmltools::tags$div(style = "flex: 1; min-width: 300px;", mapa_agosto),
+      htmltools::tags$div(style = "flex: 1; min-width: 300px;", mapa_septiembre),
+      htmltools::tags$div(style = "flex: 1; min-width: 300px;", mapa_octubre)
+    )
+  )
+)
+
+```
+
+
+# ¿Dónde ha pernoctado la baliza durante la noche?
+
+```{webr seguimiento-noche}
+# Filtrar registros desde las 02:00 hasta las 06:00
+seguimiento_noche <- seguimiento |>
+  filter(format(fecha, "%H:%M:%S") >= "02:00:00" & format(fecha, "%H:%M:%S") < "06:00:00")
+
+# Crear un mapa leaflet con seguimiento noche para ver don de pernocta la baliza
+mapa_noche <- leaflet(data = seguimiento_noche) |>
+  addTiles() |>
+  addCircleMarkers(~longitud, ~latitud, color = "red", radius = 5, fillOpacity = 0.7) |>
+  setView(lng = mean(seguimiento_noche$longitud), lat = mean(seguimiento_noche$latitud), zoom = 6) |>
+  addLegend("bottomright", colors = "red", labels = "Noche", title = "Hora")
+
+# Mostrar el mapa
+mapa_noche
+```
+
+

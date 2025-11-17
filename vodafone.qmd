@@ -1,0 +1,65 @@
+---
+title: "Trabajando con datos reales: vodafone"
+author: "Gema Fernández-Avilés Calderón"
+format: html
+theme: cerulean
+highlight-style: ayu-mirage
+self-contained: true
+date: "`r Sys.Date()`"
+code-link: true
+number-sections: true
+execute:
+  code-overflow: scroll
+  echo: true
+  eval: true
+  output: true
+  include: true
+  freeze: auto
+  fig-height: 5
+  warning: false
+  code-fold: true
+  comment: "#>"
+  code-line-numbers: true
+  code-copy: true
+#bibliography: biblio.bib
+---
+
+```{r read-packages}
+library(readxl)          # Para leer los datos en Excel
+library(tidyverse)       # Para manipular los datos
+library(DT)              # Para mostrar tablas interactivas
+library(gganimate)       # Para crear animaciones
+library(leaflet)         # Para crear mapas interactivos
+library(leaflet.extras)  # Para crear extesiones en mapas interactivos
+library(htmltools)       # Para trabajar con HTML 
+library(sf)              # Para trabajar con datos espaciales
+library(mapSpain)        # Para crear mapas de España
+```
+
+
+```{r}
+vodafone <- read_excel("datos/vodafone.xlsx", 
+     sheet = "muestra")
+
+head(vodafone)
+names(vodafone)
+dim(vodafone)
+
+# seleciona las 100 primeras filas
+
+vodafone500 <- vodafone[1:500,]
+head(vodafone500)
+```
+
+```{r}
+# compruebo que las coordenas están bine leidas y en el formato correcto. 
+# Para ello represento las coordenada en un mapa con leaftlet
+
+library(leaflet)
+
+leaflet() |>
+  addTiles() |>
+  addMarkers(data = vodafone500, lng = ~Longitude, lat = ~Latitude ) # popup = ~Operatorname
+```
+
+

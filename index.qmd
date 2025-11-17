@@ -6,7 +6,7 @@ engine: knitr  ## LO AÑADO AHORA
 format: live-html
 webr:
   packages:
-    - readxl    # Para leer los datos en Excle
+    - readxl    # Para leer los datos en Excel
     - tidyverse # Para manipular los datos
     - janitor   # Para limpiar los nombres de las variables
     - sjmisc    # Para estadísticos descriptivos
