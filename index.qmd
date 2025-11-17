@@ -4,6 +4,7 @@ author: "Gema Fernández-Aviles"
 # format: html
 engine: knitr  ## LO AÑADO AHORA
 format: live-html
+output-dir: "docs"
 webr:
   packages:
     - readxl    # Para leer los datos en Excel
@@ -20,10 +21,10 @@ webr:
     - skimr    # Para estadísticos descriptivos
 resources:
     - housing_madrid
-embed-resources: true 
+embed-resources: false
+self-contained: false
 theme: cerulean
 highlight-style: ayu-mirage
-self-contained: true
 date: "`r Sys.Date()`"
 code-link: true
 number-sections: true
